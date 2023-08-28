@@ -1,0 +1,142 @@
+import tkinter as tk
+import csv
+
+class AplicacaoFilmes:
+    def __init__(self, raiz):
+        self.raiz = raiz
+        self.raiz.title("Busca de Filmes no TMDB")
+        self.raiz.configure(bg="black")
+
+        self.rotulo_categoria = tk.Label(raiz, text="Selecione uma Categoria:", bg="black", fg="red")
+        self.rotulo_categoria.pack()
+
+        self.opcoes_categoria = ["Título", "Gênero", "Popularidade", "Orçamento", "Receita"]
+        self.variavel_categoria = tk.StringVar()
+        self.variavel_categoria.set(self.opcoes_categoria[0])
+
+        self.menu_categoria = tk.OptionMenu(raiz, self.variavel_categoria, *self.opcoes_categoria)
+        self.menu_categoria.config(bg="red", fg="white")
+        self.menu_categoria.pack()
+
+        self.rotulo_valor = tk.Label(raiz, text="Valor:", bg="black", fg="white")
+        self.rotulo_valor.pack()
+
+        self.entrada_valor = tk.Entry(raiz, width=70)
+        self.entrada_valor.pack()
+        self.entrada_valor.bind("<KeyRelease>", self.atualizar_resultados)
+
+        self.botao_buscar = tk.Button(raiz, text="Buscar", command=self.buscar_filmes, bg="red", fg="white")
+        self.botao_buscar.pack()
+
+        self.lista_resultados = tk.Listbox(raiz, width=80, height=15, bg="black", fg="white")
+        self.lista_resultados.pack()
+        self.lista_resultados.bind("<<ListboxSelect>>", self.on_resultado_selecionado)
+
+        self.rotulo_detalhes_filme = tk.Label(raiz, text="", wraplength=400, bg="black", fg="white")
+        self.rotulo_detalhes_filme.pack()
+
+        self.lista_filmes = []
+        self.lista_generos = []
+        self.lista_titulos = []
+        self.lista_popularidades = []
+        self.lista_receitas = []
+        self.lista_orcamentos = []
+
+        self.ler_dados_filmes()
+
+    def ler_dados_filmes(self):
+        with open('popular_10000_movies_tmdb.csv', "r", encoding='UTF-8', errors='replace') as arquivo:
+            leitor = csv.reader(arquivo, delimiter=';')
+            for linha in leitor:
+                self.lista_filmes.append(linha)
+                self.lista_generos.append(linha[3])
+                self.lista_titulos.append(linha[1])
+                self.lista_popularidades.append(linha[7])
+                self.lista_receitas.append(linha[11])
+                self.lista_orcamentos.append(linha[9])
+
+    def buscar_filmes(self):
+        categoria = self.variavel_categoria.get()
+        valor = self.entrada_valor.get()
+
+        if categoria and valor:
+            resultados = self.obter_resultados_por_categoria(categoria, valor)
+            self.exibir_resultados(resultados)
+        else:
+            self.lista_resultados.delete(0, tk.END)
+            self.rotulo_detalhes_filme.config(text="")
+
+    def obter_resultados_por_categoria(self, categoria, valor):
+        resultados = []
+        if categoria == "Gênero":
+            if valor.lower() == "terror":
+                resultados = [filme for i, filme in enumerate(self.lista_titulos) if "Horror" in self.lista_generos[i]]
+            elif valor.lower() == "comédia":
+                resultados = [filme for i, filme in enumerate(self.lista_titulos) if "Comedy" in self.lista_generos[i]]
+            elif valor.lower() == "ficção":
+                resultados = [filme for i, filme in enumerate(self.lista_titulos) if "Science Fiction" in self.lista_generos[i]]
+            elif valor.lower() == "drama":
+                resultados = [filme for i, filme in enumerate(self.lista_titulos) if "Drama" in self.lista_generos[i]]
+            elif valor.lower() == "romance":
+                resultados = [filme for i, filme in enumerate(self.lista_titulos) if "Romance" in self.lista_generos[i]]
+            elif valor.lower() == "animação":
+                resultados = [filme for i, filme in enumerate(self.lista_titulos) if "Animation" in self.lista_generos[i]]
+        else:
+            indice_categoria = self.opcoes_categoria.index(categoria)
+            resultados = [filme for i, filme in enumerate(self.lista_titulos) if self.lista_filmes[i][indice_categoria] == valor]
+        return self.merge_sort(resultados)
+
+    def merge_sort(self, array):
+        if len(array) <= 1:
+            return array
+
+        meio = len(array) // 2
+        metade_esquerda = array[:meio]
+        metade_direita = array[meio:]
+
+        metade_esquerda = self.merge_sort(metade_esquerda)
+        metade_direita = self.merge_sort(metade_direita)
+
+        return self.merge(metade_esquerda, metade_direita)
+
+    def merge(self, esquerda, direita):
+        resultado = []
+        indice_esquerda, indice_direita = 0, 0
+
+        while indice_esquerda < len(esquerda) and indice_direita < len(direita):
+            if esquerda[indice_esquerda] < direita[indice_direita]:
+                resultado.append(esquerda[indice_esquerda])
+                indice_esquerda += 1
+            else:
+                resultado.append(direita[indice_direita])
+                indice_direita += 1
+
+        resultado.extend(esquerda[indice_esquerda:])
+        resultado.extend(direita[indice_direita:])
+        return resultado
+
+    def exibir_resultados(self, resultados):
+        self.lista_resultados.delete(0, tk.END)
+        for filme in resultados:
+            self.lista_resultados.insert(tk.END, filme)
+
+    def on_resultado_selecionado(self, event):
+        indice_selecionado = self.lista_resultados.curselection()
+        if indice_selecionado:
+            filme_selecionado = self.lista_resultados.get(indice_selecionado[0])
+            self.exibir_detalhes_filme(filme_selecionado)
+
+    def exibir_detalhes_filme(self, filme_selecionado):
+        indice_filme = self.lista_titulos.index(filme_selecionado)
+        detalhes = f"Título: {self.lista_titulos[indice_filme]}\nGênero: {self.lista_generos[indice_filme]}\nPopularidade: {self.lista_popularidades[indice_filme]}\nOrçamento: {self.lista_orcamentos[indice_filme]}\nReceita: {self.lista_receitas[indice_filme]}"
+        self.rotulo_detalhes_filme.config(text=detalhes)
+
+    def atualizar_resultados(self, evento):
+        texto_digitado = self.entrada_valor.get().lower()
+        resultados_filtrados = [filme for filme in self.lista_titulos if filme.lower().startswith(texto_digitado)]
+        self.exibir_resultados(resultados_filtrados)
+
+if __name__ == "__main__":
+    raiz = tk.Tk()
+    app = AplicacaoFilmes(raiz)
+    raiz.mainloop()
